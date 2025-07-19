@@ -1,25 +1,57 @@
-const mongoose = require("mongoose");
-const { Schema } = mongoose;
+/**
+ * Model: Contact
+ * Represents a customer/user who interacts via a channel
+ */
 
-const contactSchema = new Schema({
-  userId: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-    index: true,
+const mongoose = require("mongoose");
+
+const contactSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    channelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Channel",
+      required: true,
+    },
+    name: {
+      type: String,
+      default: "Unknown",
+    },
+    phone: {
+      type: String,
+    },
+    email: {
+      type: String,
+    },
+    avatarUrl: {
+      type: String,
+    },
+    currentTag: {
+      type: String,
+      enum: ["lead", "support", "spam", "opportunity"],
+      default: "lead",
+    },
+    lastMessageAt: {
+      type: Date,
+    },
+    notes: {
+      type: String,
+    },
+    blocked: {
+      type: Boolean,
+      default: false,
+    },
   },
-  name: { type: String },
-  avatarUrl: { type: String },
-  phone: { type: String },
-  email: { type: String },
-  linkedinUrl: { type: String },
-  currentTag: {
-    type: String,
-    enum: ["lead", "spam", "opportunity", "support"],
-    default: "lead",
-  },
-  lastMessageAt: { type: Date },
-  createdAt: { type: Date, default: Date.now },
-});
+  {
+    timestamps: true,
+  }
+);
+
+// Index for faster queries per user
+contactSchema.index({ userId: 1, channelId: 1 });
 
 module.exports = mongoose.model("Contact", contactSchema);

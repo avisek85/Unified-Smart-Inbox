@@ -2,67 +2,53 @@
  * Controller: receives raw payload from webhooks
  * Calls service to process and save messages.
  */
-
 const messageService = require("../services/message.service");
 
-exports.handleMetaWebhook = async (req, res) => {
-  const body = req.body;
-
-  console.log("📦 Incoming webhook:", JSON.stringify(body, null, 2));
+/**
+ * Agent sends a new outbound message
+ * POST /api/messages
+ */
+exports.sendMessage = async (req, res) => {
   try {
-    // WhatsApp events
-    if (body.object === "whatsapp_business_account") {
-      // console.log("📦 Incoming webhook:", JSON.stringify(body, null, 2));
-      if (!body || !Array.isArray(body.entry) || !body.entry[0]?.changes?.[0]) {
-        console.error("❌ Invalid webhook body format");
-        return;
-      }
-      // Prevent replying to our own sent messages
-      if (message?.from === businessNumber) {
-        console.log("ℹ️ Skipping message sent by our own business number");
-        return;
-      }
-      await messageService.processIncomingMessage("whatsapp", req.body);
-      res.sendStatus(200);
-      // await whatsappHandler(body);
+    const { contactId, channelId, text, attachments } = req.body;
+
+    if (!contactId || !channelId || (!text && (!attachments || attachments.length === 0))) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Messenger events
-    else if (body.object === "page") {
-      const entry = body.entry?.[0];
-      const messaging = entry?.messaging?.[0];
-      if (messaging?.message) {
-        if (messaging?.recipient?.id == process.env.FB_PAGE_ID) {
-          await messengerHandler(messaging);
-        } else {
-          await instagramHandler(messaging); // Instagram messages come here too
-        }
-      }
+    const message = await messageService.createMessage({
+      userId: req.user.id,
+      contactId,
+      channelId,
+      direction: "outbound",
+      text,
+      attachments
+    });
+
+    return res.json(message);
+  } catch (err) {
+    console.error("[Message Controller] Failed to send message:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+/**
+ * Fetch thread of all messages for a contact
+ * GET /api/messages/:contactId
+ */
+exports.getMessagesByContact = async (req, res) => {
+  try {
+    const contactId = req.params.contactId;
+
+    if (!contactId) {
+      return res.status(400).json({ error: "Missing contactId" });
     }
 
-    res.sendStatus(200); // acknowledge receipt
+    const messages = await messageService.getMessagesByContact(contactId);
+    return res.json(messages);
   } catch (err) {
-    console.error("❌ Error in unified handler:", err);
-    res.sendStatus(500);
+    console.error("[Message Controller] Failed to fetch messages:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
-exports.handleGmailWebhook = async (req, res) => {
-  try {
-    await messageService.processIncomingMessage("gmail", req.body);
-    res.sendStatus(200);
-  } catch (err) {
-    console.error("Gmail webhook error:", err);
-    res.sendStatus(500);
-  }
-};
-
-exports.handleLinkedInWebhook = async (req, res) => {
-  try {
-    await messageService.processIncomingMessage("linkedin", req.body);
-    res.sendStatus(200);
-  } catch (err) {
-    console.error("LinkedIn webhook error:", err);
-    res.sendStatus(500);
-  }
-};

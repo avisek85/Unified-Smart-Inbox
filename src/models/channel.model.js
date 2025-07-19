@@ -1,21 +1,38 @@
-const mongoose = require("mongoose");
-const { Schema } = mongoose;
+/**
+ * Model: Channel
+ * Represents a communication channel (WhatsApp, Gmail, LinkedIn, etc.) linked to a user
+ */
 
-const channelSchema = new Schema({
+const mongoose = require("mongoose");
+
+const channelSchema = new mongoose.Schema({
   userId: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-    index: true,
   },
   type: {
     type: String,
-    enum: ["whatsapp", "gmail", "linkedin", "facebook"],
     required: true,
+    enum: ["whatsapp", "facebook", "instagram", "linkedin", "email"], // can add more
   },
-  name: { type: String }, // Friendly name
-  config: { type: Schema.Types.Mixed }, // Tokens, page IDs, etc.
-  createdAt: { type: Date, default: Date.now },
+  name: {
+    type: String,
+    default: "",
+  },
+  config: {
+    type: mongoose.Schema.Types.Mixed, // flexible: store phoneNumberId, tokens, etc.
+    default: {},
+  },
+  status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active'
+    },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 module.exports = mongoose.model("Channel", channelSchema);

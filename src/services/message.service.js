@@ -1,88 +1,68 @@
 /**
- * Service: normalize raw webhook payload
- * Find/create contact, save message, queue AI tagging
+ * Service: Message
+ * Handles creating, listing, updating messages
  */
 
-const Contact = require("../models/contact.model");
 const Message = require("../models/message.model");
-const Channel = require("../models/channel.model");
-const aiTaggingQueue = require("../queues/aiTagging.queue");
-const socket = require("../sockets");
 
-exports.processIncomingMessage = async (channelType, rawPayload) => {
-  // Step 1: Normalize payload
-  const normalized = await normalizePayload(channelType, rawPayload);
-
-  // Step 2: Find or create contact
-  let contact = await Contact.findOne({
-    userId: normalized.userId,
-    phone: normalized.contactPhone,
+/**
+ * Create & store a new message
+ * @param {ObjectId} userId
+ * @param {ObjectId} contactId
+ * @param {ObjectId} channelId
+ * @param {String} direction - incoming | outgoing
+ * @param {String} content
+ * @param {Array} [attachments]
+ * @param {Date} [timestamp]
+ * @returns saved message
+ */
+exports.createMessage = async (
+  userId,
+  contactId,
+  channelId,
+  direction,
+  content,
+  attachments = [],
+  timestamp = new Date()
+) => {
+  return await Message.create({
+    userId,
+    contactId,
+    channelId,
+    direction,
+    content,
+    attachments,
+    timestamp,
   });
-
-  if (!contact) {
-    contact = await Contact.create({
-      userId: normalized.userId,
-      name: normalized.contactName,
-      phone: normalized.contactPhone,
-      avatarUrl: normalized.avatarUrl,
-      lastMessageAt: new Date(),
-    });
-  } else {
-    contact.lastMessageAt = new Date();
-    await contact.save();
-  }
-
-  // Step 3: Store message
-  const message = await Message.create({
-    userId: normalized.userId,
-    contactId: contact._id,
-    channelId: normalized.channelId,
-    direction: "incoming",
-    content: normalized.messageText,
-    timestamp: new Date(),
-  });
-
-  // Step 4: Queue AI tagging
-  aiTaggingQueue.addTaggingJob({
-    contactId: contact._id,
-    messageText: normalized.messageText,
-  });
-
-  // Step 5: Emit real-time to frontend
-  socket.emitNewMessage(normalized.userId, contact._id, message);
 };
 
 /**
- * Normalize different payloads to standard shape.
+ * List messages for a specific contact (conversation thread)
+ * @param {ObjectId} userId
+ * @param {ObjectId} contactId
+ * @param {Number} [limit=50]
+ * @returns array of messages sorted by timestamp
  */
-async function normalizePayload(channelType, raw) {
-  if (channelType === "whatsapp") {
-    // Example: find channel by phoneNumberId
-    const phoneNumberId = raw.entry?.[0]?.id;
-    const channel = await Channel.findOne({
-      type: "whatsapp",
-      "config.phoneNumberId": phoneNumberId,
-    });
-    if (!channel) throw new Error("Channel not found");
+exports.getMessagesByContact = async (userId, contactId, limit = 50) => {
+  return await Message.find({ userId, contactId })
+    .sort({ timestamp: -1 })
+    .limit(limit)
+    .lean();
+};
 
-    const change = raw.entry[0].changes?.[0];
-    const messageObj = change?.value?.messages?.[0];
-    const contactObj = change?.value?.contacts?.[0];
-
-    return {
-      userId: channel.userId,
-      channelId: channel._id,
-      contactName: contactObj?.profile?.name || "Unknown",
-      contactPhone: contactObj?.wa_id,
-      avatarUrl: null,
-      messageText: messageObj?.text?.body || "",
-    };
-  } else if (channelType === "gmail") {
-    // Example: find channel, parse sender email, subject, etc.
-    // Similar shape: userId, channelId, contactName, contactPhone/email, messageText
-  } else if (channelType === "linkedin") {
-    // parse LinkedIn payload
-  } else {
-    throw new Error("Unsupported channel");
-  }
-}
+/**
+ * Update message status (e.g., delivered, read)
+ * @param {ObjectId} userId
+ * @param {String} messageId
+ * @param {String} status
+ * @returns updated message
+ */
+exports.updateMessageStatus = async (userId, messageId, status) => {
+  const message = await Message.findOneAndUpdate(
+    { _id: messageId, userId },
+    { $set: { status } },
+    { new: true }
+  );
+  if (!message) throw new Error("Message not found or not authorized");
+  return message;
+};

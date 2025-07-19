@@ -6,6 +6,7 @@ exports.init = (server) => {
 
 exports.emitNewMessage = (userId, contactId, message) => {
   if (io) {
+    console.log(`🔔 Emitting new message for user from socket/index.js ${userId}`);
     io.to(userId.toString()).emit("newMessage", { contactId, message });
   }
 };

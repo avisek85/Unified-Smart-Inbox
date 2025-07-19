@@ -1,0 +1,122 @@
+🧪 Complete testing structure (Postman Collection)
+We’ll build a single Postman Collection named:
+
+🧪 Unified Smart Inbox - Backend API Tests
+
+Inside that, we’ll organize folders by module:
+
+📁 Unified Smart Inbox - Backend API Tests
+
+├─ 📁 Auth & Users
+│   ├─ POST /api/auth/register (Register new user)
+│   ├─ POST /api/auth/login (Login user, get JWT)
+│   └─ GET /api/users/me (Get logged in user info)
+│
+├─ 📁 Channels
+│   ├─ POST /api/channels (Add new channel: WhatsApp, Gmail etc)
+│   ├─ GET /api/channels (List my channels)
+│   ├─ PUT /api/channels/:id (Update channel config)
+│   └─ DELETE /api/channels/:id (Delete channel)
+│
+├─ 📁 Contacts
+│   ├─ GET /api/contacts (List contacts)
+│   ├─ GET /api/contacts/:id (Get single contact detail)
+│   ├─ PUT /api/contacts/:id (Update tag, block etc)
+│
+├─ 📁 Messages
+│   ├─ POST /api/messages (Send outbound message)
+│   ├─ GET /api/messages/:contactId (Get thread for contact)
+│
+├─ 📁 Webhooks (Public, no auth)
+│   ├─ POST /api/webhooks/whatsapp (Test incoming WhatsApp message)
+│   ├─ POST /api/webhooks/gmail (Test incoming Gmail message)
+│   ├─ POST /api/webhooks/linkedin (Test incoming LinkedIn message)
+│
+├─ 📁 AI & Tagging (Optional)
+│   └─ POST /api/ai/tag (Manual test tagging, e.g. text → tag)
+│
+├─ 📁 Health & Misc
+│   └─ GET /api/health (Health check)
+🧰 Detailed testing approach:
+✅ Step 1: Create collection
+Name: 🧪 Unified Smart Inbox - Backend API Tests
+
+Add variables:
+
+baseUrl → http://localhost:5000
+
+token → will hold JWT after login
+
+✅ Step 2: Auth & save token
+In "Auth & Users" folder, add:
+
+POST {{baseUrl}}/api/auth/login
+
+In Tests tab, add:
+
+js
+Copy
+Edit
+pm.environment.set("token", pm.response.json().token);
+Now {{token}} can be used in Authorization header:
+
+Copy
+Edit
+Bearer {{token}}
+✅ Step 3: Use environment variable
+Every secured route → set header:
+
+css
+Copy
+Edit
+Authorization: Bearer {{token}}
+✅ Step 4: Webhook testing
+Webhooks don’t need token.
+
+Add raw JSON payloads in Postman body (copied from dummy payload files you keep under test/).
+
+✅ Step 5: Save & document
+For every request:
+
+Add description:
+
+Purpose
+
+Expected status
+
+Example payload
+
+Makes it self-documenting for your team.
+
+✅ Step 6: Export & version control
+Export collection as unified-inbox-api.postman_collection.json
+
+Keep it in:
+
+bash
+Copy
+Edit
+project-root/test/postman/
+Document in README.md:
+
+bash
+Copy
+Edit
+## 🧪 API Testing
+- Open Postman, import: test/postman/unified-inbox-api.postman_collection.json
+- Update `{{baseUrl}}` if needed
+- Login → auto set `{{token}}` → test protected APIs
+✅ By doing this you get:
+✔ Central place to test all modules
+✔ Reusable, shareable with team
+✔ Works locally & later in staging
+✔ Base for automated CI / newman tests
+
+📦 Summary:
+What	Why
+Postman collection + folders	organized, modular
+env variables (baseUrl, token)	easy switch dev/staging
+save token in test tab	auto set
+webhook dummy payloads	easy repeat
+document each request	team friendly
+version control JSON	consistency
